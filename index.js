@@ -23,7 +23,7 @@ async function getUserByToken(token) {
             },
 
         });
-        return res.data;// 정상적으로 가져와지면 res(response)의 data라는 property 안 data를 다시 return 해주면 된다. 이 return된 데이터는 user의 정보가 담긴 데이터이다.
+        return res.data;// 정상적으로 가져와지면 res(response)의 data라는 property 안 data를 다시 return 해주면 된다. 이 return된 데이터는 user의 정보가 담긴 데이터임
     }catch (error) {
         console.log('getUserByToken error', error);
         return null;

@@ -1,12 +1,3 @@
-function bindLogoutButton(){
-    // querySelector를 통해 id가 btn_logout인 DOM을 가져옴
-    const btnLogout = document.querySelector('#btn_logout');
-
-    // 로직 이벤트 연결 작업 : 얻어온 btnLogout을 함수 addEventLister를 통해서 click 이벤트, 실제로 click이 일어나면 발생하는 로직 함수 연결하는 설정
-    btnLogout.addEventListener('click', logout/*  실제로 click이 일어나면 발생하는 로직 함수 */);
-
-}
-
 function getToken() {
     // getItem에서 token이라는 item이 있는지 localStorage로부터 요청해서 받아옴, 없으면 null 오고 있으면 어떠한 값이 될 것이다.
     return localStorage.getItem('token');
@@ -16,7 +7,7 @@ function getToken() {
 async function getUserByToken(token) {
     try {
         
-        const res = await axios.get('https://api.marktube.tv/vi/me', {
+        const res = await axios.get('https://api.marktube.tv/v1/me', {
             headers :{
                 Authorization : `Bearer $(token)`, // 토큰값 넣기(서버랑 규약이 되어 있음), 토큰이 유효하면 user 정보를 res.data에 넣어서 우리한테 돌려줌
 
@@ -30,11 +21,31 @@ async function getUserByToken(token) {
     }
 }
 
+async function logout() {
+    const token = getToken();
+    if (token === null) {
+      location.assign('/login');
+      return;
+    }
+    try {
+      await axios.delete('https://api.marktube.tv/v1/me', {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+    } catch (error) {
+      console.log('logout error', error);
+    } finally {
+      localStorage.clear();
+      location.assign('/login');
+    }
+}
+
 // getBooks는 나의 책목록을 내놔라는 요청을 하고 그 요청이 정상적으로 끝나면 response된 데이터를 사용하는 것이기 때문에 이 함수도 비동기 함수 async function 이다
 async function getBooks(token) {
     try {
         
-        const res = await axios.get('https://api.marktube.tv/vi/me', {
+        const res = await axios.get('https://api.marktube.tv/v1/me', {
             headers :{
                 Authorization : `Bearer $(token)`,
 
@@ -49,6 +60,36 @@ async function getBooks(token) {
     }
 }
 
+// deleteBook 함수는 서버에 보내서 처리하는 함수이기에 async function
+//서버에 책을 지워주는 함수(어떤 책을 지워야할지 정하기 위해 bookId)
+async function deleteBook(bookId) {
+    // 보낼 때 토큰이 문제가 있는지 검사-main에서 검사한 토큰과 다르게 또 문제가 생겨있을 수 있기 때문이다.
+    const token = getToken();
+    if (token === null) {
+        location.assign('/login');
+        return;
+    }
+
+    // axios.delete를 통해 bookId를 담아서 url 호출되면 문제 없으면 정상적으로 삭제된다
+    await axios.delete(`https://api.marktube.tv/v1/book/${bookId}`, {
+        headers: {
+            Authorization: `Bearer ${token}`,
+        },
+    });
+    return;
+}
+
+function bindLogoutButton(){
+    // querySelector를 통해 id가 btn_logout인 DOM을 가져옴
+    const btnLogout = document.querySelector('#btn_logout');
+
+    // 로직 이벤트 연결 작업 : 얻어온 btnLogout을 함수 addEventLister를 통해서 click 이벤트, 실제로 click이 일어나면 발생하는 로직 함수 연결하는 설정
+    btnLogout.addEventListener('click', logout/*  실제로 click이 일어나면 발생하는 로직 함수 */);
+
+}
+
+
+
 // 받아온 데이터를 표현해주는 것이기 때문에 일반 함수를 씀
 function render(books){
     const listElement = document.querySelector('#list');
@@ -59,31 +100,32 @@ function render(books){
 
         // 하나 하나의 부트스트랩에 있는 카드 스타일로 표현해주기 위해 사용
         bookElement.innerHTML = `
-        <div class="card md-4 shadow-sm">
+            <div class="card mb-4 shadow-sm">
             <div class="card-body">
                 <p class="card-text">${book.title === '' ? '제목 없음' : book.title}</p>
                 <div class="d-flex justify-content-between align-items-center">
-                    <div class="btn-group">
-                        <a href="/book?id=${book.bookId}"> 
-                            <button 
-                            type="button"
-                            class="btn btn-sm btn-outline-secondary">
-                            View
-                            </button>
-                        </a>
-
-                        <button
+                <div class="btn-group">
+                    <a href="/book?id=${book.bookId}">
+                    <button
                         type="button"
-                        class="btn btn-sm btn-outline-secondary btn-delete"
-                        data-book-id = "${book.bookId}">
-                        Delete
-                        </button> 
-
-                    </div>
-                    <small class="text-muted">
-                        ${new Date(book.createAt,).toLocaleString()}
-                    </small>
+                        class="btn btn-sm btn-outline-secondary"
+                    >
+                        View
+                    </button>
+                    </a>
+                    <button
+                    type="button"
+                    class="btn btn-sm btn-outline-secondary btn-delete"
+                    data-book-id="${book.bookId}"
+                    >
+                    Delete
+                    </button>
                 </div>
+                <small class="text-muted">${new Date(
+                    book.createdAt,
+                ).toLocaleString()}</small>
+                </div>
+            </div>
             </div>
             `;
             listElement.append(bookElement);//bookElement를 listElement에 추가해서 표현
@@ -103,25 +145,6 @@ function render(books){
 
         });
     }); 
-}
-
-// deleteBook 함수는 서버에 보내서 처리하는 함수이기에 async function
-//서버에 책을 지워주는 함수(어떤 책을 지워야할지 정하기 위해 bookId)
-async function deleteBook(bookId) {
-    // 보낼 때 토큰이 문제가 있는지 검사-main에서 검사한 토큰과 다르게 또 문제가 생겨있을 수 있기 때문이다.
-    const token = getToken();
-    if (token === null) {
-        location.assign('/login');
-        return;
-    }
-
-    // axios.delete를 통해 bookId를 담아서 url 호출되면 문제 없으면 정상적으로 삭제된다
-    await axios.delete(`https://api.marktube.tv/vi/book/${bookId}`, {
-        headers: {
-            Authorization: `Bearer ${token}`,
-        },
-    });
-    return;
 }
 
 
